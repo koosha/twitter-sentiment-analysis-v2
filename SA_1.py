@@ -6,6 +6,8 @@ from nltk.classify import NaiveBayesClassifier, maxent
 
 from nltk.classify.scikitlearn import SklearnClassifier
 from sklearn.svm import SVC, LinearSVC, NuSVC
+from sklearn.naive_bayes import MultinomialNB, BernoulliNB
+from sklearn.linear_model import LogisticRegression, SGDClassifier
 
 from nltk.metrics import BigramAssocMeasures
 from nltk.probability import FreqDist, ConditionalFreqDist
@@ -15,6 +17,26 @@ from nltk.metrics import precision, recall
 POLARITY_DATA_DIR = os.path.join('./sentiment_data')
 RT_POLARITY_POS_FILE = os.path.join(POLARITY_DATA_DIR, 'rt-polarity-pos.txt')
 RT_POLARITY_NEG_FILE = os.path.join(POLARITY_DATA_DIR, 'rt-polarity-neg.txt')
+
+
+def get_performance(clf_sel, train_features, test_features):
+    ref_set = collections.defaultdict(set)
+    test_set = collections.defaultdict(set)
+
+    clf = SklearnClassifier(clf_sel)
+    classifier = clf.train(train_features)
+    print(str(clf_sel), 'accuracy:'
+    (nltk.classify.accuracy(classifier, test_features)) * 100)
+
+    for i, (features, label) in enumerate(test_features):
+        ref_set[label].add(i)
+        predicted = classifier.classify(features)
+        test_set[predicted].add(i)
+
+    print 'pos precision:', precision(ref_set['pos'], test_set['pos'])
+    print 'pos recall:', recall(ref_set['pos'], test_set['pos'])
+    print 'neg precision:', precision(ref_set['neg'], test_set['neg'])
+    print 'neg recall:', recall(ref_set['neg'], test_set['neg'])
 
 
 # this function takes a feature selection mechanism and returns its performance in a variety of metrics
@@ -56,17 +78,39 @@ def evaluate_features(feature_select, classifier_sel):
             # prints metrics to show how well the feature selection did
         print 'train on %d instances, test on %d instances' % (len(trainFeatures), len(testFeatures))
         print 'accuracy:', nltk.classify.util.accuracy(classifier, testFeatures)
-        print 'pos precision:', precision(referenceSets['pos'], testSets['pos'])
-        print 'pos recall:', recall(referenceSets['pos'], testSets['pos'])
-        print 'neg precision:', precision(referenceSets['neg'], testSets['neg'])
-        print 'neg recall:', recall(referenceSets['neg'], testSets['neg'])
+
+        get_performance(classifier, referenceSets, testSets)
+
         classifier.show_most_informative_features(10)
 
     elif classifier_sel == 'MaxEnt':
         pass
 
+    elif classifier_sel == 'other_classifiers':
+
+        get_performance(MultinomialNB(), trainFeatures, testFeatures)
+        get_performance(BernoulliNB(), trainFeatures, testFeatures)
+        get_performance(LogisticRegression(), trainFeatures, testFeatures)
+        get_performance(SGDClassifier(), trainFeatures, testFeatures)
+        get_performance(SVC(), trainFeatures, testFeatures)
+        get_performance(LinearSVC(), trainFeatures, testFeatures)
+        get_performance(NuSVC(), trainFeatures, testFeatures)
+
+
+
     else:  # use SVM
-        pass
+        SVC_classifier = SklearnClassifier(SVC())
+        classifier = SVC_classifier.train(trainFeatures)
+        print("SVC_classifier accuracy:",
+              (nltk.classify.accuracy(classifier, testFeatures)) * 100)
+
+        for i, (features, label) in enumerate(testFeatures):
+            referenceSets[label].add(i)
+            predicted = classifier.classify(features)
+            testSets[predicted].add(i)
+
+        get_performance(classifier, referenceSets, testSets)
+
 
 
 # creates a feature selection mechanism that uses all words
@@ -135,7 +179,7 @@ if __name__ == '__main__':
     # tries using all words as the feature selection mechanism
     print 'using all words as features'
 
-    classifier = 'BN'
+    classifier = 'other_classifiers'
 
     evaluate_features(make_full_dict, classifier)
 
