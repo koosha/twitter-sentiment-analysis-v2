@@ -6,7 +6,7 @@ from nltk.classify import NaiveBayesClassifier, maxent
 
 from nltk.classify.scikitlearn import SklearnClassifier
 from sklearn.svm import SVC, LinearSVC, NuSVC
-from sklearn.naive_bayes import MultinomialNB, BernoulliNB
+from sklearn.naive_bayes import MultinomialNB, BernoulliNB, GaussianNB
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 
 from nltk.metrics import BigramAssocMeasures
@@ -25,18 +25,23 @@ def get_performance(clf_sel, train_features, test_features):
 
     clf = SklearnClassifier(clf_sel)
     classifier = clf.train(train_features)
-    print(str(clf_sel), 'accuracy:'
-    (nltk.classify.accuracy(classifier, test_features)) * 100)
+
+    # print(str(clf_sel), 'accuracy:'(nltk.classify.accuracy(classifier, test_features)) * 100)
+
+    clf_acc = nltk.classify.accuracy(classifier, test_features)
 
     for i, (features, label) in enumerate(test_features):
         ref_set[label].add(i)
         predicted = classifier.classify(features)
         test_set[predicted].add(i)
 
-    print 'pos precision:', precision(ref_set['pos'], test_set['pos'])
-    print 'pos recall:', recall(ref_set['pos'], test_set['pos'])
-    print 'neg precision:', precision(ref_set['neg'], test_set['neg'])
-    print 'neg recall:', recall(ref_set['neg'], test_set['neg'])
+    pos_precision = precision(ref_set['pos'], test_set['pos'])
+    pos_recall = recall(ref_set['pos'], test_set['pos'])
+    neg_precision = precision(ref_set['neg'], test_set['neg'])
+    neg_recall = recall(ref_set['neg'], test_set['neg'])
+
+    print(
+    "{0},{1},{2},{3},{4},{5}".format(clf_sel.__class__, clf_acc, pos_precision, pos_recall, neg_precision, neg_recall))
 
 
 # this function takes a feature selection mechanism and returns its performance in a variety of metrics
@@ -79,15 +84,23 @@ def evaluate_features(feature_select, classifier_sel):
         print 'train on %d instances, test on %d instances' % (len(trainFeatures), len(testFeatures))
         print 'accuracy:', nltk.classify.util.accuracy(classifier, testFeatures)
 
-        get_performance(classifier, referenceSets, testSets)
+        for i, (features, label) in enumerate(testFeatures):
+            referenceSets[label].add(i)
+            predicted = classifier.classify(features)
+            testSets[predicted].add(i)
+
+        print 'pos precision:', precision(referenceSets['pos'], testSets['pos'])
+        print 'pos recall:', recall(referenceSets['pos'], testSets['pos'])
+        print 'neg precision:', precision(referenceSets['neg'], testSets['neg'])
+        print 'neg recall:', recall(referenceSets['neg'], testSets['neg'])
+
 
         classifier.show_most_informative_features(10)
 
     elif classifier_sel == 'MaxEnt':
-        pass
+        get_performance(LogisticRegression(), trainFeatures, testFeatures)
 
-    elif classifier_sel == 'other_classifiers':
-
+    elif classifier_sel == 'all_classifiers':
         get_performance(MultinomialNB(), trainFeatures, testFeatures)
         get_performance(BernoulliNB(), trainFeatures, testFeatures)
         get_performance(LogisticRegression(), trainFeatures, testFeatures)
@@ -98,7 +111,7 @@ def evaluate_features(feature_select, classifier_sel):
 
 
 
-    else:  # use SVM
+    elif classifier_sel == 'SVM':  # use SVM
         SVC_classifier = SklearnClassifier(SVC())
         classifier = SVC_classifier.train(trainFeatures)
         print("SVC_classifier accuracy:",
@@ -110,7 +123,6 @@ def evaluate_features(feature_select, classifier_sel):
             testSets[predicted].add(i)
 
         get_performance(classifier, referenceSets, testSets)
-
 
 
 # creates a feature selection mechanism that uses all words
@@ -178,17 +190,18 @@ def get_part_speech():
 if __name__ == '__main__':
     # tries using all words as the feature selection mechanism
     print 'using all words as features'
+    classifier = 'all_classifiers'
 
-    classifier = 'other_classifiers'
+    print ("classifier, accuracy, pos precision, pos recall, neg precision, neg recall")
 
     evaluate_features(make_full_dict, classifier)
-
     # finds word scores
     word_scores = create_word_scores()
 
     # numbers of features to select
     numbers_to_test = [10, 100, 1000, 10000, 15000]
     # tries the best_word_features mechanism with each of the numbers_to_test of features
+
     for num in numbers_to_test:
         print 'evaluating best %d word features' % (num)
         best_words = find_best_words(word_scores, num)

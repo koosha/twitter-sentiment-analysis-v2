@@ -347,7 +347,7 @@ if __name__ == "__main__":
     # tickers = df['info_tech_tickers'] # for training
     tickers = tickers.dropna()
     for ticker in tickers:
-        sys.argv = ['tap.py', 'search', '--consumer-key', 'FVlBeRHQm5HGvEQwJBoEArCY5',
+        sys.argv = ['tweet_extractor.py', 'search', '--consumer-key', 'FVlBeRHQm5HGvEQwJBoEArCY5',
                     '--consumer-secret', 'C9YlITLVbowhNrKwFxL0uA4oC6gD0O8xzClxSiWuwW30SwNaMl',
                     '-q', ticker, '-v', 'DEBUG', '-l', 'en']
 
