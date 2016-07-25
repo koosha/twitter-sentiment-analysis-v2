@@ -1,5 +1,7 @@
 # for docs see http://andybromberg.com/sentiment-analysis-python/
 
+import pandas as pd
+
 import re, math, collections, itertools, os
 import nltk, nltk.classify.util, nltk.metrics
 from nltk.classify import NaiveBayesClassifier, maxent
@@ -13,6 +15,7 @@ from nltk.metrics import BigramAssocMeasures
 from nltk.probability import FreqDist, ConditionalFreqDist
 
 from nltk.metrics import precision, recall
+
 
 POLARITY_DATA_DIR = os.path.join('./sentiment_data')
 RT_POLARITY_POS_FILE = os.path.join(POLARITY_DATA_DIR, 'rt-polarity-pos.txt')
@@ -187,7 +190,23 @@ def get_part_speech():
     pass
 
 
+def get_tweets_data(fname):
+    df_turfs = pd.read_excel(fname, header=None)
+    tweets = []
+    for row in range(len(df_turfs)):
+        tweets.append(df_turfs.iloc[row, 1])
+    return tweets
+
+
+def clean_text(txt_list):
+    txt_list
+
+
 if __name__ == '__main__':
+
+    tweets_txt = get_tweets_data('/Users/kooshag/Google Drive/code/data/twitter_training_SP_financials.xlsx')
+    clean_text(tweets_txt)
+
     # tries using all words as the feature selection mechanism
     print 'using all words as features'
     classifier = 'all_classifiers'
