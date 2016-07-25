@@ -200,7 +200,7 @@ def get_tweets_data(fname):
 
 def clean_text(txt_list):
     pass
-    # txt_list
+    # txt_list sth
 
 
 if __name__ == '__main__':
