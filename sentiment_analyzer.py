@@ -5,6 +5,7 @@ import pandas as pd
 import re, math, collections, itertools, os
 import nltk, nltk.classify.util, nltk.metrics
 from nltk.classify import NaiveBayesClassifier, maxent
+from nltk.corpus import stopwords
 
 from nltk.classify.scikitlearn import SklearnClassifier
 from sklearn.svm import SVC, LinearSVC, NuSVC
@@ -20,6 +21,10 @@ from nltk.metrics import precision, recall
 POLARITY_DATA_DIR = os.path.join('./sentiment_data')
 RT_POLARITY_POS_FILE = os.path.join(POLARITY_DATA_DIR, 'rt-polarity-pos.txt')
 RT_POLARITY_NEG_FILE = os.path.join(POLARITY_DATA_DIR, 'rt-polarity-neg.txt')
+
+stopWords = stopwords.words('english')
+stopWords.append('AT_USER')
+stopWords.append('URL')
 
 
 def get_performance(clf_sel, train_features, test_features):
@@ -53,14 +58,21 @@ def evaluate_features(feature_select, classifier_sel):
     negFeatures = []
     # http://stackoverflow.com/questions/367155/splitting-a-string-into-words-and-punctuation
     # breaks up the sentences into lists of individual words (as selected by the input mechanism) and appends 'pos' or 'neg' after each list
+
     with open(RT_POLARITY_POS_FILE, 'r') as posSentences:
         for i in posSentences:
-            posWords = re.findall(r"[\w']+|[.,!?;]", i.rstrip())
+            i = clean_text(i)
+            posWords = [w for w in i.lower().split() if w not in stopWords]
+
+            # posWords = re.findall(r"[\w']+|[.,!?;]", i.rstrip())
             posWords = [feature_select(posWords), 'pos']
             posFeatures.append(posWords)
     with open(RT_POLARITY_NEG_FILE, 'r') as negSentences:
         for i in negSentences:
-            negWords = re.findall(r"[\w']+|[.,!?;]", i.rstrip())
+            i = clean_text(i)
+            negWords = [w for w in i.lower().split() if w not in stopWords]
+
+            # negWords = re.findall(r"[\w']+|[.,!?;]", i.rstrip())
             negWords = [feature_select(negWords), 'neg']
             negFeatures.append(negWords)
 
@@ -140,12 +152,20 @@ def create_word_scores():
     negWords = []
     with open(RT_POLARITY_POS_FILE, 'r') as posSentences:
         for i in posSentences:
-            posWord = re.findall(r"[\w']+|[.,!?;]", i.rstrip())
+            i = clean_text(i)
+            posWord = [w for w in i.lower().split() if w not in stopWords]
+
+            # posWord = re.findall(r"[\w']+|[.,!?;]", i.rstrip())
             posWords.append(posWord)
+
     with open(RT_POLARITY_NEG_FILE, 'r') as negSentences:
         for i in negSentences:
-            negWord = re.findall(r"[\w']+|[.,!?;]", i.rstrip())
+            i = clean_text(i)
+            negWord = [w for w in i.lower().split() if w not in stopWords]
+
+            # negWord = re.findall(r"[\w']+|[.,!?;]", i.rstrip())
             negWords.append(negWord)
+
     posWords = list(itertools.chain(*posWords))
     negWords = list(itertools.chain(*negWords))
 
@@ -198,15 +218,46 @@ def get_tweets_data(fname):
     return tweets
 
 
-def clean_text(txt_list):
-    pass
-    # txt_list sth
+def getStopWordList(stopWordListFileName):
+    # read the stopwords file and build a list
+    stopWords = []
+    stopWords.append('AT_USER')
+    stopWords.append('URL')
+
+    fp = open(stopWordListFileName, 'r')
+    line = fp.readline()
+    while line:
+        word = line.strip()
+        stopWords.append(word)
+        line = fp.readline()
+    fp.close()
+    return stopWords
+
+
+def clean_text(tweet):  # this also removes stop words
+
+    # Convert to lower case
+    tweet = tweet.lower()
+    # Convert www.* or https?://* to URL
+    tweet = re.sub('((www\.[^\s]+)|(https?://[^\s]+))', 'URL', tweet)
+    # Convert @username to AT_USER
+    tweet = re.sub('@[^\s]+', 'AT_USER', tweet)
+    # Remove additional white spaces
+    tweet = re.sub('[\s]+', ' ', tweet)
+    # Replace #word with word
+    tweet = re.sub(r'#([^\s]+)', r'\1', tweet)
+    # trim
+    tweet = tweet.strip('\'"')
+
+    return tweet
+
 
 
 if __name__ == '__main__':
 
     tweets_txt = get_tweets_data('/Users/kooshag/Google Drive/code/data/twitter_training_SP_financials.xlsx')
-    clean_text(tweets_txt)
+
+    # tw_txt = clean_text(tweets_txt)
 
     # tries using all words as the feature selection mechanism
     print 'using all words as features'
@@ -220,6 +271,7 @@ if __name__ == '__main__':
 
     # numbers of features to select
     numbers_to_test = [10, 100, 1000, 10000, 15000]
+
     # tries the best_word_features mechanism with each of the numbers_to_test of features
 
     for num in numbers_to_test:
@@ -228,4 +280,24 @@ if __name__ == '__main__':
         evaluate_features(best_word_features, classifier)
 
 
-        # try with different parts of speech
+        # trying different parts of speech canot improve the classifier much
+
+
+def negate_sequence(text):
+    """
+    Detects negations and transforms negated words into "not_" form.
+    """
+    negation = False
+    delims = "?.,!:;"
+    result = []
+    words = text.split()
+    for word in words:
+        stripped = word.strip(delims).lower()
+        result.append("not_" + stripped if negation else stripped)
+
+        if any(neg in word for neg in frozenset(["not", "n't", "no"])):
+            negation = not negation
+
+        if any(c in word for c in delims):
+            negation = False
+    return result
