@@ -3,6 +3,8 @@
 import pandas as pd
 
 import re, math, collections, itertools, os
+import pickle
+
 import nltk, nltk.classify.util, nltk.metrics
 from nltk.classify import NaiveBayesClassifier, maxent
 from nltk.corpus import stopwords
@@ -27,12 +29,20 @@ stopWords.append('AT_USER')
 stopWords.append('URL')
 
 
+def pickle_cls(cls, fname):
+    f = open(fname + '.pickle', 'wb')
+    pickle.dump(cls, f)
+    f.close()
+
 def get_performance(clf_sel, train_features, test_features):
     ref_set = collections.defaultdict(set)
     test_set = collections.defaultdict(set)
 
     clf = SklearnClassifier(clf_sel)
     classifier = clf.train(train_features)
+
+    if str(clf_sel.__class__) == "<class 'sklearn.naive_bayes.MultinomialNB'>":
+        pickle_cls(classifier, 'MultinomialNB')
 
     # print(str(clf_sel), 'accuracy:'(nltk.classify.accuracy(classifier, test_features)) * 100)
 
@@ -211,7 +221,7 @@ def get_part_speech():
 
 
 def get_tweets_data(fname):
-    df_turfs = pd.read_excel(fname, header=None)
+    df_turfs = pd.read_excel(fname, header=0)
     tweets = []
     for row in range(len(df_turfs)):
         tweets.append(df_turfs.iloc[row, 1])
@@ -252,12 +262,73 @@ def clean_text(tweet):  # this also removes stop words
     return tweet
 
 
+def get_tweets(df, cashtag=None, date_in=None):
+    tweets = []
+    if cashtag == None and date_in == None:
+        for row in range(len(df)):
+            tweets.append(df.iloc[row, 1])
+
+    elif date_in:
+        tmp_df = df.loc[str(date_in)]
+        df_ret = tmp_df[tmp_df['text'].str.contains("\\" + cashtag)]  # the "\" is to scape $
+        tweets = df_ret['text'].tolist()
+    else:
+        print ("error - ticker and date:", cashtag, date_in)
+
+    return tweets
+
+
+def get_aggregate_sentiment(tweets_lst, cls):
+    classifier = cls
+    # convert tweets_lst to test_features
+
+    posFeatures = []
+    for tw in tweets_lst:
+        posWords = [w for w in tw.lower().split() if w not in stopWords]
+        posWords = [make_full_dict(posWords), 'no label']
+        posFeatures.append(posWords)
+
+    test_set = collections.defaultdict(set)
+    for i, (features, label) in enumerate(posFeatures):
+        # ref_set[label].add(i)
+        predicted = classifier.classify(features)
+        test_set[predicted].add(i)
+
+
+def compute_sentiments():
+    fname = '/Users/kooshag/Google Drive/code/data/Oil_all_tweets.csv'
+
+    # dateparse = lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+    df_tweets = pd.read_csv(fname, header=0, parse_dates=['created_at'], index_col=1)
+    df_tweets.index = df_tweets.index.map(lambda t: t.strftime('%Y-%m-%d'))  # remove time from index
+
+    f = open('MultinomialNB.pickle', 'rb')
+    classifier = pickle.load(f)
+    f.close()
+
+    # tweets_all = get_tweets(df_tweets)
+    Bdays = pd.bdate_range('2016-06-22', '2016-07-22')
+    Bdays = pd.DatetimeIndex(Bdays).normalize()  # remove hours from datetime
+
+    # df_anomalies # anomalies on Oil stocks during June 22 to July 22
+
+    Oil_tickers = ["$XOM", "$SU"]
+    df_sentiments = pd.DataFrame(index=Bdays, columns=Oil_tickers)
+
+    for ind in df_sentiments.index:  # for each day
+        for ticker in Oil_tickers:  # calculate the sentiment of each tweet and aggregate
+
+            tweets = get_tweets(df_tweets, ticker, ind.date())
+
+            sent = get_aggregate_sentiment(tweets, classifier)
+            df_sentiments.loc[ind, ticker] = sent
+
+    print df_sentiments
+
 
 if __name__ == '__main__':
 
-    tweets_txt = get_tweets_data('/Users/kooshag/Google Drive/code/data/twitter_training_SP_financials.xlsx')
-
-    # tw_txt = clean_text(tweets_txt)
+    # tweets_txt = get_tweets_data('/Users/kooshag/Google Drive/code/data/twitter_training_SP_financials.xlsx')
 
     # tries using all words as the feature selection mechanism
     print 'using all words as features'
@@ -279,8 +350,12 @@ if __name__ == '__main__':
         best_words = find_best_words(word_scores, num)
         evaluate_features(best_word_features, classifier)
 
-
         # trying different parts of speech canot improve the classifier much
+
+    #### calculating sentiments for each stock
+    compute_sentiments()
+
+
 
 
 def negate_sequence(text):
