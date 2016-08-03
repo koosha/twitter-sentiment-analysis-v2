@@ -294,6 +294,13 @@ def get_aggregate_sentiment(tweets_lst, cls):
         predicted = classifier.classify(features)
         test_set[predicted].add(i)
 
+    if (len(test_set['pos']) + len(test_set['neg'])) != 0:  # check for division by zero
+        sentiment = float(len(test_set['pos']) - len(test_set['neg'])) / (len(test_set['pos']) + len(test_set['neg']))
+    else:
+        sentiment = 0
+
+    return sentiment
+
 
 def compute_sentiments():
     fname = '/Users/kooshag/Google Drive/code/data/Oil_all_tweets.csv'
@@ -312,7 +319,10 @@ def compute_sentiments():
 
     # df_anomalies # anomalies on Oil stocks during June 22 to July 22
 
-    Oil_tickers = ["$XOM", "$SU"]
+    Oil_tickers = ["$XOM", "$CVX", "$SLB", "$COP", "$OXY", "$EOG", "$HAL", "$APC",
+                   "$PSX", "$APA", "$NOV", "$KMI", "$BHI", "$VLO", "$DVN", "$HES", "$MRO", "$WMB", "$MPC", "$PXD",
+                   "$NBL", "$SE", "$CHK", "$EQT", "$SWN", "$COG", "$RIG", "$CAM", "$FTI", "$RRC", "$ESV", "$OKE", "$HP",
+                   "$MUR", "$CNX", "$NE", "$TSO", "$DO", "$NBR", "$DNR", "$BTU", "$QEP", "$NFX", "$RDC"]
     df_sentiments = pd.DataFrame(index=Bdays, columns=Oil_tickers)
 
     for ind in df_sentiments.index:  # for each day
@@ -321,6 +331,7 @@ def compute_sentiments():
             tweets = get_tweets(df_tweets, ticker, ind.date())
 
             sent = get_aggregate_sentiment(tweets, classifier)
+            print ticker, sent
             df_sentiments.loc[ind, ticker] = sent
 
     print df_sentiments
