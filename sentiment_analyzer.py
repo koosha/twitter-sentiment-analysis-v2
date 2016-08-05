@@ -220,14 +220,6 @@ def get_part_speech():
     pass
 
 
-def get_tweets_data(fname):
-    df_turfs = pd.read_excel(fname, header=0)
-    tweets = []
-    for row in range(len(df_turfs)):
-        tweets.append(df_turfs.iloc[row, 1])
-    return tweets
-
-
 def getStopWordList(stopWordListFileName):
     # read the stopwords file and build a list
     stopWords = []
@@ -268,6 +260,10 @@ def get_tweets(df, cashtag=None, date_in=None):
         for row in range(len(df)):
             tweets.append(df.iloc[row, 1])
 
+    elif date_in == None:  # return all tweets in the dataset for a given ticker
+        df_ret = df[df['text'].str.contains("\\" + cashtag)]  # the "\" is to scape $
+        tweets = df_ret['text'].tolist()
+
     elif date_in:
         tmp_df = df.loc[str(date_in)]
         df_ret = tmp_df[tmp_df['text'].str.contains("\\" + cashtag)]  # the "\" is to scape $
@@ -302,8 +298,7 @@ def get_aggregate_sentiment(tweets_lst, cls):
     return sentiment
 
 
-def compute_sentiments():
-    fname = '/Users/kooshag/Google Drive/code/data/Oil_all_tweets.csv'
+def compute_sentiments(start, end, fname, tickers):
 
     # dateparse = lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     df_tweets = pd.read_csv(fname, header=0, parse_dates=['created_at'], index_col=1)
@@ -314,32 +309,54 @@ def compute_sentiments():
     f.close()
 
     # tweets_all = get_tweets(df_tweets)
-    Bdays = pd.bdate_range('2016-06-22', '2016-07-22')
+    Bdays = pd.bdate_range(start, end)
     Bdays = pd.DatetimeIndex(Bdays).normalize()  # remove hours from datetime
 
-    # df_anomalies # anomalies on Oil stocks during June 22 to July 22
-
-    Oil_tickers = ["$XOM", "$CVX", "$SLB", "$COP", "$OXY", "$EOG", "$HAL", "$APC",
-                   "$PSX", "$APA", "$NOV", "$KMI", "$BHI", "$VLO", "$DVN", "$HES", "$MRO", "$WMB", "$MPC", "$PXD",
-                   "$NBL", "$SE", "$CHK", "$EQT", "$SWN", "$COG", "$RIG", "$CAM", "$FTI", "$RRC", "$ESV", "$OKE", "$HP",
-                   "$MUR", "$CNX", "$NE", "$TSO", "$DO", "$NBR", "$DNR", "$BTU", "$QEP", "$NFX", "$RDC"]
-    df_sentiments = pd.DataFrame(index=Bdays, columns=Oil_tickers)
+    df_sentiments = pd.DataFrame(index=Bdays, columns=tickers)
 
     for ind in df_sentiments.index:  # for each day
-        for ticker in Oil_tickers:  # calculate the sentiment of each tweet and aggregate
+        for ticker in tickers:  # calculate the sentiment of each tweet and aggregate
 
             tweets = get_tweets(df_tweets, ticker, ind.date())
 
             sent = get_aggregate_sentiment(tweets, classifier)
-            print ticker, sent
             df_sentiments.loc[ind, ticker] = sent
 
-    print df_sentiments
+    return df_sentiments
 
+
+def get_tweets_stats(fname, tickers):
+    df_tweets = pd.read_csv(fname, header=0)
+    df_tweet_stats = pd.DataFrame(columns=tickers)
+    for ticker in tickers:
+        tweets = get_tweets(df_tweets, ticker)
+        df_tweet_stats.loc[1, ticker] = len(tweets)
+
+    return df_tweet_stats
 
 if __name__ == '__main__':
 
-    # tweets_txt = get_tweets_data('/Users/kooshag/Google Drive/code/data/twitter_training_SP_financials.xlsx')
+    oil_file = '/Users/kooshag/Google Drive/code/data/Oil_all_tweets.csv'
+    oil_tickers = ["$XOM", "$CVX", "$SLB", "$COP", "$OXY", "$EOG", "$HAL", "$APC",
+                   "$PSX", "$APA", "$NOV", "$KMI", "$BHI", "$VLO", "$DVN", "$HES", "$MRO", "$WMB", "$MPC", "$PXD",
+                   "$NBL", "$SE", "$CHK", "$EQT", "$SWN", "$COG", "$RIG", "$CAM", "$FTI", "$RRC", "$ESV", "$OKE", "$HP",
+                   "$MUR", "$CNX", "$NE", "$TSO", "$DO", "$NBR", "$DNR", "$BTU", "$QEP", "$NFX", "$RDC"]
+
+    info_tech_file = '/Users/kooshag/Google Drive/code/data/twitter_training_SP_financials.xlsx'
+    Info_tech_tickets = ["$AAPL", "$MSFT", "$IBM", "$ORCL", "$GOOGL", "$QCOM", "$INTC", "$FB", "$CSCO", "$V", "$MA",
+                         "$EBAY", "$HPQ", "$EMC", "$ACN", "$TXN", "$YHOO", "$ADP", "$CRM", "$ADBE", "$CTSH", "$MU",
+                         "$GLW", "$AMAT", "$TEL", "$INTU", "$SNDK", "$WDC", "$MSI", "$STX", "$APH", "$ADI", "$BRCM",
+                         "$FIS", "$FISV", "$PAYX", "$XRX", "$ADS", "$CA", "$SYMC", "$JNPR", "$NTAP", "$XLNX", "$ADSK",
+                         "$CTXS", "$ALTR", "$KLAC", "$LLTC", "$NVDA", "$AKAM", "$CSC", "$EA", "$LRCX", "$MCHP", "$RHT",
+                         "$HRS", "$WU", "$FFIV", "$FSLR", "$TDC", "$LSI", "$TSS", "$VRSN", "$FLIR", "$JBL", "$GOOG"]
+
+    oil_tickers = ["$XOM", "$CVX"]  # this is for testing
+    compute_sentiments('2016-06-22', '2016-07-27', oil_file, oil_tickers)
+
+    stats_df = get_tweets_stats(oil_file, oil_tickers)
+    stats_df.to_csv("temp_del.csv", sep=',', encoding='utf-8')
+
+
 
     # tries using all words as the feature selection mechanism
     print 'using all words as features'
@@ -364,7 +381,14 @@ if __name__ == '__main__':
         # trying different parts of speech canot improve the classifier much
 
     #### calculating sentiments for each stock
-    compute_sentiments()
+
+    ## get twitter stats (oil_sector)
+    ## get twitter stats (finance_sector)
+
+    polarities_oil_sector, df_tweets_stats = compute_sentiments('2016-06-22', '2016-07-27')
+
+    ## get anomalies dataframe ('2016-06-22', '2016-07-22')
+    #
 
 
 
