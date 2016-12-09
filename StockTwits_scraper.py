@@ -98,7 +98,7 @@ def write_to_file(filename, d):
 
 if __name__ == "__main__":
     # old = read_from_file(FILENAME)
-    new = get_tweets_list(fin_sector_tickers, 'StockTwits_scrapes2.csv')
+    new = get_tweets_list(fin_sector_tickers, './StockTwits_outputs/StockTwits_scrapes.csv')
 
 
     # new = append(old, new)
