@@ -30,17 +30,16 @@ else:
     RT_POLARITY_POS_FILE = os.path.join(POLARITY_DATA_DIR, 'rt-polarity-pos.txt')
     RT_POLARITY_NEG_FILE = os.path.join(POLARITY_DATA_DIR, 'rt-polarity-neg.txt')
 
-
 stopWords = stopwords.words('english')
 stopWords.append('AT_USER')
 stopWords.append('URL')
-
 
 
 def pickle_cls(cls, fname):
     f = open(fname + '.pickle', 'wb')
     pickle.dump(cls, f)
     f.close()
+
 
 def get_performance(clf_sel, train_features, test_features):
     ref_set = collections.defaultdict(set)
@@ -53,7 +52,6 @@ def get_performance(clf_sel, train_features, test_features):
     except:
         classification_error = True
         # print (str(clf_sel.__class__),'NA')
-
 
     if str(clf_sel.__class__) == "<class 'sklearn.naive_bayes.MultinomialNB'>":
         pickle_cls(classifier, 'MultinomialNB')
@@ -171,7 +169,6 @@ def evaluate_features(feature_select, classifier_sel):
         print ('pos recall:', recall(referenceSets['pos'], testSets['pos']))
         print ('neg precision:', precision(referenceSets['neg'], testSets['neg']))
         print ('neg recall:', recall(referenceSets['neg'], testSets['neg']))
-
 
         classifier.show_most_informative_features(10)
 
@@ -355,7 +352,6 @@ def get_aggregate_sentiment(tweets_lst, cls):
 
 
 def compute_sentiments(start, end, fname, tickers):
-
     # dateparse = lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     df_tweets = pd.read_csv(fname, header=0, parse_dates=['created_at'], index_col=1)
     df_tweets.index = df_tweets.index.map(lambda t: t.strftime('%Y-%m-%d'))  # remove time from index
@@ -396,7 +392,6 @@ def get_tweets_stats(fname, tickers):
 def get_stats(inp, ticks, outp):
     stats_df = get_tweets_stats(inp, ticks)
     stats_df.to_csv(outp, sep=',', encoding='utf-8')
-
 
 
 if __name__ == '__main__':
@@ -443,16 +438,14 @@ if __name__ == '__main__':
 
         # trying different parts of speech canot improve the classifier much
 
-    #### calculating sentiments for each stock
+        #### calculating sentiments for each stock
 
-    ## get twitter stats (oil_sector)
-    ## get twitter stats (finance_sector)
-
-
-    ## get anomalies dataframe ('2016-06-22', '2016-07-22')
-    #
+        ## get twitter stats (oil_sector)
+        ## get twitter stats (finance_sector)
 
 
+        ## get anomalies dataframe ('2016-06-22', '2016-07-22')
+        #
 
 
 def negate_sequence(text):
